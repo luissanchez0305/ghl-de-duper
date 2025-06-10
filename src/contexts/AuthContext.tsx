@@ -68,6 +68,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const initiateGHLAuth = () => {
     console.log('Initiating GHL OAuth flow');
     console.log('Redirect URI:', GHL_REDIRECT_URI);
+    console.log('Client ID:', GHL_CLIENT_ID);
     const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&client_id=${GHL_CLIENT_ID}&redirect_uri=${encodeURIComponent(GHL_REDIRECT_URI)}`;
     
     // Open OAuth in a popup window
