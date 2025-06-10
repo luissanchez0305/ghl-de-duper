@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, RefreshCw, Settings, Users, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,67 +12,98 @@ interface Account {
 }
 
 const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated, initiateGHLAuth } = useAuth();
   const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
-  const [accounts, setAccounts] = useState<Account[]>([
-    {
-      id: '1',
-      name: 'Main Agency Account',
-      contactCount: 3245,
-      lastScanned: '2025-02-15T10:30:00Z',
-    },
-    {
-      id: '2',
-      name: 'Client: Acme Corp',
-      contactCount: 1876,
-      lastScanned: '2025-02-10T14:45:00Z',
-    },
-    {
-      id: '3',
-      name: 'Client: XYZ Industries',
-      contactCount: 4532,
-      lastScanned: null,
-    },
-    {
-      id: '4',
-      name: 'Client: ABC Services',
-      contactCount: 945,
-      lastScanned: null,
-    },
-  ]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+
+  const fetchAccounts = useCallback(async () => {
+    if (!user?.accessToken) return;
+    
+    setIsLoadingAccounts(true);
+    try {
+      const response = await fetch('/api/accounts', {
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch accounts');
+      }
+
+      const data = await response.json();
+      const accountsWithMetadata = data.accounts.map((account: { id: string; name: string }) => ({
+        id: account.id,
+        name: account.name,
+        contactCount: 0, // Will be updated when scanning
+        lastScanned: null,
+      }));
+      
+      setAccounts(accountsWithMetadata);
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+      toast.error('Failed to fetch accounts. Please try again.');
+    } finally {
+      setIsLoadingAccounts(false);
+    }
+  }, [user?.accessToken]);
+
+  // Fetch accounts when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.accessToken) {
+      fetchAccounts();
+    }
+  }, [isAuthenticated, user?.accessToken, fetchAccounts]);
 
   const fetchContacts = async (accountId: string) => {
+    if (!user?.accessToken) return;
+    
     try {
       setIsScanning(true);
       setScanProgress(0);
 
-      // Simulate API progress updates
+      // Progress simulation
       const progressInterval = setInterval(() => {
         setScanProgress(prev => {
-          if (prev >= 98) {
+          if (prev >= 90) {
             clearInterval(progressInterval);
-            return 98;
+            return 90;
           }
           return prev + Math.random() * 10;
         });
       }, 500);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Fetch contacts from API
+      const response = await fetch(`/api/contacts/search?locationId=${accountId}&limit=1000`, {
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+        },
+      });
 
-      // Update account's last scanned date
+      if (!response.ok) {
+        throw new Error('Failed to fetch contacts');
+      }
+
+      const data = await response.json();
+      
+      // Update account's contact count and last scanned date
       setAccounts(prev => prev.map(account => 
         account.id === accountId 
-          ? { ...account, lastScanned: new Date().toISOString() }
+          ? { 
+              ...account, 
+              contactCount: data.pagination?.totalContacts || 0,
+              lastScanned: new Date().toISOString() 
+            }
           : account
       ));
 
       clearInterval(progressInterval);
       setScanProgress(100);
 
-      toast.success('Contact scan completed successfully!');
+      toast.success(`Found ${data.groups?.length || 0} duplicate groups!`);
       
       // Short delay before redirect
       setTimeout(() => {
@@ -88,12 +119,74 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  // If not authenticated, show only Quick Start Guide
+  if (!isAuthenticated) {
+    return (
+      <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to GHL De-Duper</h1>
+          <p className="text-gray-600">
+            Connect to your GoHighLevel account to get started with contact deduplication.
+          </p>
+        </div>
+
+        {/* Quick Start Guide for Unauthenticated Users */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h2 className="font-semibold text-lg text-gray-900 mb-4">Quick Start Guide</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="border border-gray-200 rounded-lg p-4 relative">
+              <div className="absolute -top-3 -left-3 w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-medium">
+                1
+              </div>
+              <h3 className="font-medium text-gray-900 mb-2 mt-2">Connect Your Account</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Connect your GoHighLevel account to start scanning for duplicates.
+              </p>
+              <button
+                onClick={initiateGHLAuth}
+                className="text-primary-600 hover:text-primary-700 flex items-center text-sm font-medium"
+              >
+                Connect with GoHighLevel <ArrowRight size={16} className="ml-1" />
+              </button>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg p-4 relative opacity-50">
+              <div className="absolute -top-3 -left-3 w-8 h-8 bg-gray-400 text-white rounded-full flex items-center justify-center font-medium">
+                2
+              </div>
+              <h3 className="font-medium text-gray-900 mb-2 mt-2">Scan For Duplicates</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Run a scan to find duplicate contacts based on email and phone.
+              </p>
+              <span className="text-gray-400 flex items-center text-sm font-medium">
+                Available after connection
+              </span>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg p-4 relative opacity-50">
+              <div className="absolute -top-3 -left-3 w-8 h-8 bg-gray-400 text-white rounded-full flex items-center justify-center font-medium">
+                3
+              </div>
+              <h3 className="font-medium text-gray-900 mb-2 mt-2">Merge Duplicates</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Review and merge duplicate contacts with a single click.
+              </p>
+              <span className="text-gray-400 flex items-center text-sm font-medium">
+                Available after scanning
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="mb-10">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">
-          Connect to your GoHighLevel accounts and start finding duplicates.
+          Connected to GoHighLevel. Manage your accounts and find duplicates.
         </p>
       </div>
 
@@ -150,41 +243,55 @@ const DashboardPage: React.FC = () => {
 
       {/* Accounts Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
+        <div className="px-6 py-5 border-b border-gray-100">
           <h2 className="font-semibold text-lg text-gray-900">Connected Accounts</h2>
-          <div className="flex items-center space-x-3">
-            <Link
-              to="/connect"
-              className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
-            >
-              Connect New Account
-            </Link>
-          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Account Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contacts
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Scanned
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {accounts.map((account) => (
+          {isLoadingAccounts ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-primary-600" />
+              <span className="ml-3 text-gray-600">Loading accounts...</span>
+            </div>
+          ) : accounts.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No accounts found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Unable to fetch your GoHighLevel accounts. Please try reconnecting.
+              </p>
+              <div className="mt-6">
+                <button
+                  onClick={fetchAccounts}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Account Name
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contacts
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Scanned
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {accounts.map((account) => (
                 <tr key={account.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -265,9 +372,10 @@ const DashboardPage: React.FC = () => {
                     )}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -281,14 +389,11 @@ const DashboardPage: React.FC = () => {
             </div>
             <h3 className="font-medium text-gray-900 mb-2 mt-2">Connect Your Account</h3>
             <p className="text-gray-600 text-sm mb-4">
-              Connect your GoHighLevel account to start scanning for duplicates.
+              Your GoHighLevel account is connected. You can now scan for duplicates.
             </p>
-            <Link
-              to="/connect"
-              className="text-primary-600 hover:text-primary-700 flex items-center text-sm font-medium"
-            >
-              Connect Account <ArrowRight size={16} className="ml-1" />
-            </Link>
+            <span className="text-green-600 flex items-center text-sm font-medium">
+              ✓ Connected
+            </span>
           </div>
 
           <div className="border border-gray-200 rounded-lg p-4 relative">

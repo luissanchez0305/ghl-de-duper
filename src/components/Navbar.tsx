@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
   
   // Check if current route is homepage
@@ -61,7 +61,7 @@ const Navbar: React.FC = () => {
               >
                 Pricing
               </a>
-              {user && (
+              {isAuthenticated && (
                 <Link 
                   to="/dashboard" 
                   className={`font-medium ${
@@ -76,9 +76,9 @@ const Navbar: React.FC = () => {
             </div>
             
             <div>
-              {user ? (
+              {isAuthenticated ? (
                 <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600">Hello, {user.name}</span>
+                  <span className="text-sm text-gray-600">Hello, {user?.name || 'User'}</span>
                   <button
                     onClick={logout}
                     className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
@@ -88,10 +88,10 @@ const Navbar: React.FC = () => {
                 </div>
               ) : (
                 <Link
-                  to="/auth"
+                  to="/dashboard"
                   className="px-4 py-2 border border-primary-600 text-primary-600 rounded-lg font-medium hover:bg-primary-50 transition-colors"
                 >
-                  Login
+                  Get Started
                 </Link>
               )}
             </div>
@@ -134,7 +134,7 @@ const Navbar: React.FC = () => {
               >
                 Pricing
               </a>
-              {user && (
+              {isAuthenticated && (
                 <Link 
                   to="/dashboard" 
                   className={`font-medium px-4 py-2 rounded-md ${
@@ -148,10 +148,10 @@ const Navbar: React.FC = () => {
                 </Link>
               )}
               
-              {user ? (
+              {isAuthenticated ? (
                 <>
                   <div className="px-4 py-2 font-medium text-gray-600">
-                    Hello, {user.name}
+                    Hello, {user?.name || 'User'}
                   </div>
                   <button
                     onClick={() => {
@@ -165,11 +165,11 @@ const Navbar: React.FC = () => {
                 </>
               ) : (
                 <Link
-                  to="/auth"
+                  to="/dashboard"
                   className="px-4 py-2 font-medium text-primary-600 hover:bg-primary-50 rounded-md"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Login
+                  Get Started
                 </Link>
               )}
             </div>

@@ -12,8 +12,6 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -23,8 +21,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  login: async () => {},
-  signup: async () => {},
   logout: () => {},
   isLoading: true,
   isAuthenticated: false,
@@ -39,7 +35,7 @@ interface AuthProviderProps {
 }
 
 const GHL_CLIENT_ID = import.meta.env.VITE_GHL_CLIENT_ID || 'your-client-id';
-const GHL_REDIRECT_URI = `${window.location.origin}/oauth/callback`;
+const GHL_REDIRECT_URI = `${window.location.origin}/oauth/token`;
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -72,8 +68,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const initiateGHLAuth = () => {
     console.log('Initiating GHL OAuth flow');
     console.log('Redirect URI:', GHL_REDIRECT_URI);
-    const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&client_id=${GHL_CLIENT_ID}&redirect_uri=${encodeURIComponent(GHL_REDIRECT_URI)}&scope=contacts.readonly contacts.write`;
-    window.location.href = authUrl;
+    const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&client_id=${GHL_CLIENT_ID}&redirect_uri=${encodeURIComponent(GHL_REDIRECT_URI)}`;
+    
+    // Open OAuth in a popup window
+    const popup = window.open(
+      authUrl,
+      'ghl-oauth',
+      'width=600,height=700,scrollbars=yes,resizable=yes'
+    );
+    
+    // Listen for the popup to close or send a message
+    const checkClosed = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(checkClosed);
+        // Check if tokens were stored
+        const accessToken = localStorage.getItem('ghl_access_token');
+        if (accessToken) {
+          window.location.reload();
+        }
+      }
+    }, 1000);
   };
   
   const handleOAuthCallback = async (code: string, locationId: string) => {
@@ -104,69 +118,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('ghl_refresh_token', refresh_token);
       localStorage.setItem('ghl_location_id', locationId);
       
-      if (user) {
-        const updatedUser = {
-          ...user,
-          accessToken: access_token,
-          locationId,
-        };
-        console.log('Updating user with OAuth data:', updatedUser);
-        setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      }
+      // Create user from OAuth data
+      const newUser: User = {
+        id: locationId,
+        name: 'GoHighLevel User',
+        email: '',
+        plan: 'free',
+        accessToken: access_token,
+        locationId,
+      };
+      
+      console.log('Creating user with OAuth data:', newUser);
+      setUser(newUser);
+      localStorage.setItem('user', JSON.stringify(newUser));
     } catch (error) {
       console.error('OAuth token exchange error:', error);
       throw error;
     }
   };
   
-  const login = async (email: string, password: string) => {
-    console.log('Attempting login:', { email });
-    setIsLoading(true);
-    try {
-      const demoUser: User = {
-        id: '1',
-        name: 'Demo User',
-        email: email,
-        plan: 'free',
-      };
-      
-      console.log('Login successful, setting user:', demoUser);
-      setUser(demoUser);
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      toast.success('Successfully logged in!');
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error('Failed to log in. Please try again.');
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const signup = async (email: string, password: string, name: string) => {
-    console.log('Attempting signup:', { email, name });
-    setIsLoading(true);
-    try {
-      const demoUser: User = {
-        id: '1',
-        name: name,
-        email: email,
-        plan: 'free',
-      };
-      
-      console.log('Signup successful, setting user:', demoUser);
-      setUser(demoUser);
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      toast.success('Successfully signed up!');
-    } catch (error) {
-      console.error('Signup error:', error);
-      toast.error('Failed to sign up. Please try again.');
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
   
   const logout = () => {
     console.log('Logging out user:', user?.email);
@@ -181,11 +151,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       user,
-      login,
-      signup,
       logout,
       isLoading,
-      isAuthenticated: !!user,
+      isAuthenticated: !!user && !!user.accessToken,
       handleOAuthCallback,
       initiateGHLAuth,
     }}>

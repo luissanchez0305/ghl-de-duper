@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const HeroSection: React.FC = () => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   return (
     <section className="py-16 md:py-24 bg-gradient-to-br from-primary-50 to-secondary-50">
@@ -38,21 +38,12 @@ const HeroSection: React.FC = () => {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4">
-              {user ? (
-                <Link 
-                  to="/dashboard" 
-                  className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center justify-center"
-                >
-                  Go to Dashboard <ArrowRight size={18} className="ml-2" />
-                </Link>
-              ) : (
-                <Link 
-                  to="/auth" 
-                  className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center justify-center"
-                >
-                  Get Started Free <ArrowRight size={18} className="ml-2" />
-                </Link>
-              )}
+              <Link 
+                to="/dashboard" 
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center justify-center"
+              >
+                {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'} <ArrowRight size={18} className="ml-2" />
+              </Link>
               <a 
                 href="#how-it-works" 
                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"

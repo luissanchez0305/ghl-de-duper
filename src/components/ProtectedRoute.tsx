@@ -9,7 +9,7 @@ const ProtectedRoute: React.FC = () => {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
   
-  return isAuthenticated ? <Outlet /> : <Navigate to="/auth" />;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/" />;
 };
 
 export default ProtectedRoute;

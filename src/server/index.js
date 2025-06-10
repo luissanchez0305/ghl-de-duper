@@ -50,6 +50,107 @@ fastify.get('/health', async (request, reply) => {
   return { status: 'ok' };
 });
 
+// OAuth token exchange route
+fastify.post('/oauth/token', async (request, reply) => {
+  console.log('OAuth token exchange requested:', request.body);
+  const { code, locationId, redirectUri } = request.body;
+
+  if (!code || !locationId || !redirectUri) {
+    console.error('Missing required OAuth parameters:', { hasCode: !!code, hasLocationId: !!locationId, hasRedirectUri: !!redirectUri });
+    return reply.status(400).send({ error: 'Missing required parameters' });
+  }
+
+  try {
+    const clientId = process.env.VITE_GHL_CLIENT_ID;
+    const clientSecret = process.env.VITE_GHL_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      console.error('Missing GHL OAuth configuration');
+      return reply.status(500).send({ error: 'OAuth configuration error' });
+    }
+
+    console.log('Exchanging code for token with GHL');
+    const tokenResponse = await fetch('https://marketplace.gohighlevel.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      console.error('GHL OAuth error:', tokenResponse.status, tokenResponse.statusText);
+      const errorText = await tokenResponse.text();
+      console.error('GHL OAuth error details:', errorText);
+      throw new Error(`OAuth token exchange failed: ${tokenResponse.statusText}`);
+    }
+
+    const tokenData = await tokenResponse.json();
+    console.log('OAuth token exchange successful:', { hasAccessToken: !!tokenData.access_token, hasRefreshToken: !!tokenData.refresh_token });
+
+    return {
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      token_type: tokenData.token_type || 'Bearer',
+      expires_in: tokenData.expires_in,
+    };
+  } catch (error) {
+    console.error('Error in OAuth token exchange:', error);
+    return reply.status(500).send({ error: 'Failed to exchange code for token' });
+  }
+});
+
+// Get GHL accounts/locations route
+fastify.get('/accounts', async (request, reply) => {
+  console.log('Fetching GHL accounts');
+  const token = request.headers.authorization?.replace('Bearer ', '');
+
+  if (!token) {
+    console.error('Missing authorization token');
+    return reply.status(401).send({ error: 'Missing authorization token' });
+  }
+
+  try {
+    console.log('Fetching user locations from GHL API');
+    const response = await fetch('https://services.gohighlevel.com/v1/locations/', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!response.ok) {
+      console.error('GHL API error:', response.status, response.statusText);
+      throw new Error(`Failed to fetch locations: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Locations fetched successfully:', { count: data.locations?.length });
+
+    const accounts = (data.locations || []).map(location => ({
+      id: location.id,
+      name: location.name,
+      timezone: location.timezone,
+      country: location.country,
+      address: location.address,
+      phone: location.phone,
+      email: location.email,
+      website: location.website,
+    }));
+
+    return { accounts };
+  } catch (error) {
+    console.error('Error fetching accounts:', error);
+    return reply.status(500).send({ error: 'Failed to fetch accounts' });
+  }
+});
+
 // Fetch contacts route
 fastify.get('/contacts/search', async (request, reply) => {
   console.log('Fetching contacts:', request.query);

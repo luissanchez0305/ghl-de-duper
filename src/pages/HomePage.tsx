@@ -9,7 +9,7 @@ import FAQSection from '../components/FAQSection';
 import { useAuth } from '../contexts/AuthContext';
 
 const HomePage: React.FC = () => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -107,21 +107,12 @@ const HomePage: React.FC = () => {
             Get started today with our free plan and see the difference organized contact data can make.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            {user ? (
-              <Link 
-                to="/dashboard" 
-                className="px-6 py-3 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center justify-center"
-              >
-                Go to Dashboard <ArrowRight size={18} className="ml-2" />
-              </Link>
-            ) : (
-              <Link 
-                to="/auth" 
-                className="px-6 py-3 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center justify-center"
-              >
-                Get Started <ArrowRight size={18} className="ml-2" />
-              </Link>
-            )}
+            <Link 
+              to="/dashboard" 
+              className="px-6 py-3 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center justify-center"
+            >
+              {isAuthenticated ? 'Go to Dashboard' : 'Get Started'} <ArrowRight size={18} className="ml-2" />
+            </Link>
             <a 
               href="#pricing" 
               className="px-6 py-3 bg-transparent border-2 border-white rounded-lg font-medium hover:bg-white/10 transition-colors"

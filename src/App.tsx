@@ -7,7 +7,6 @@ import DashboardPage from './pages/DashboardPage';
 import DuplicatesPage from './pages/DuplicatesPage';
 import MergePage from './pages/MergePage';
 import HistoryPage from './pages/HistoryPage';
-import AuthPage from './pages/AuthPage';
 import OAuthCallback from './pages/OAuthCallback';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
@@ -26,13 +25,12 @@ function App() {
               <Route index element={<HomePage />} />
               <Route path="/gohighlevel-bulk-contact-deduper-free" element={<HomePage />} />
               <Route path="/merge-duplicate-contacts-gohighlevel-tool" element={<HomePage />} />
-              <Route path="/auth" element={<AuthPage />} />
               <Route path="/oauth/callback" element={<OAuthCallback />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/duplicates" element={<DuplicatesPage />} />
                 <Route path="/merge" element={<MergePage />} />
                 <Route path="/history" element={<HistoryPage />} />

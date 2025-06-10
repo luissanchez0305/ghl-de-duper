@@ -148,7 +148,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({ id }) => {
                 </ul>
                 
                 <Link 
-                  to="/auth" 
+                  to="/dashboard" 
                   className={`mt-8 block w-full py-3 px-4 ${
                     plan.popular
                       ? 'bg-primary-600 text-white hover:bg-primary-700'
