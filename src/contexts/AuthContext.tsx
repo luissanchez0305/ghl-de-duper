@@ -35,7 +35,7 @@ interface AuthProviderProps {
 }
 
 const GHL_CLIENT_ID = import.meta.env.VITE_GHL_CLIENT_ID || 'your-client-id';
-const GHL_REDIRECT_URI = `${window.location.origin}/oauth/token`;
+const GHL_REDIRECT_URI = `${window.location.origin} `;
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('Initiating GHL OAuth flow');
     console.log('Redirect URI:', GHL_REDIRECT_URI);
     console.log('Client ID:', GHL_CLIENT_ID);
-    const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&client_id=${GHL_CLIENT_ID}&redirect_uri=${encodeURIComponent(GHL_REDIRECT_URI)}&scope=contacts.readonly contacts.write locations.readonly`;
+    const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&client_id=${GHL_CLIENT_ID}&redirect_uri=${encodeURIComponent(GHL_REDIRECT_URI)}&scope=locations.readonly`;
     
     // Open OAuth in a popup window
     const popup = window.open(
